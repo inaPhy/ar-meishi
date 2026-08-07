@@ -1,0 +1,180 @@
+{
+  "version": "1.1",
+  "components": [
+    {
+      "id": "c1",
+      "type": "wire_l",
+      "x": 2,
+      "y": 2,
+      "rotation": 1,
+      "value": 0,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0,
+        "right": 0.3747714491252228,
+        "top": 0,
+        "bottom": 0.6252285437324916
+      }
+    },
+    {
+      "id": "R",
+      "type": "resistor",
+      "x": 4,
+      "y": 2,
+      "rotation": 0,
+      "value": 100,
+      "pProgress": 0.8126142736721675,
+      "lastClickTime": 1786105648853
+    },
+    {
+      "id": "Cap",
+      "type": "capacitor",
+      "x": 6,
+      "y": 3,
+      "rotation": 3,
+      "value": 10000,
+      "lastClickTime": 1786105647088,
+      "pProgress": 0.18738571664419135
+    },
+    {
+      "id": "c2",
+      "type": "wire_l",
+      "x": 6,
+      "y": 2,
+      "rotation": 2,
+      "value": 0,
+      "lastClickTime": 1786105647929,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0.6252285544638605,
+        "right": 0,
+        "top": 0,
+        "bottom": 0.3747714361454025
+      }
+    },
+    {
+      "id": "c3",
+      "type": "wire_l",
+      "x": 6,
+      "y": 4,
+      "rotation": 3,
+      "value": 0,
+      "lastClickTime": 1786105644150,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0.3747714332883694,
+        "right": 0,
+        "top": 0.6252285667116161,
+        "bottom": 0
+      }
+    },
+    {
+      "id": "bat",
+      "type": "battery",
+      "x": 2,
+      "y": 3,
+      "rotation": 1,
+      "value": 6,
+      "rInt": 0.01,
+      "lastClickTime": 1786097531560,
+      "pProgress": 0.1873857312849819
+    },
+    {
+      "id": "c4",
+      "type": "wire_l",
+      "x": 2,
+      "y": 4,
+      "rotation": 0,
+      "value": 0,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0,
+        "right": 0.6252285667116295,
+        "top": 0.3747714332883698,
+        "bottom": 0
+      }
+    },
+    {
+      "id": "1786098308364",
+      "type": "wire",
+      "x": 3,
+      "y": 4,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.18738571664418546
+    },
+    {
+      "id": "1786105652243",
+      "type": "wire",
+      "x": 3,
+      "y": 2,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001
+    },
+    {
+      "id": "1786105653542",
+      "type": "wire",
+      "x": 5,
+      "y": 2,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001
+    },
+    {
+      "id": "1786105654925",
+      "type": "wire",
+      "x": 4,
+      "y": 4,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001
+    },
+    {
+      "id": "1786105656539",
+      "type": "wire",
+      "x": 5,
+      "y": 4,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001
+    }
+  ],
+  "settings": {
+    "darkMode": false,
+    "absMode": true,
+    "show3d": true,
+    "showParticles": false,
+    "showResults": false,
+    "isElectronMode": false,
+    "timeScale": 0.3,
+    "showIllustrations": false,
+    "toolbarVisibility": {
+      "battery": true,
+      "ac_source": true,
+      "resistor": true,
+      "bulb": true,
+      "capacitor": true,
+      "inductor": true,
+      "voltmeter": true,
+      "ammeter": true,
+      "wire": true,
+      "wire_l": true,
+      "wire_t": true,
+      "wire_cross": true,
+      "switch": true,
+      "undefined": true
+    }
+  }
+}
