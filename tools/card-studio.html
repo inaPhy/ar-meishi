@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AR名刺スタジオ — QR名刺 + MindARマーカー生成</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#0d1117; color:#e6edf3; padding:24px;
+         font-family:"Hiragino Sans","Noto Sans JP",system-ui,-apple-system,sans-serif; }
+  h1 { font-size:19px; margin:0 0 4px; }
+  .sub { font-size:13px; opacity:.6; margin:0 0 22px; }
+  .wrap { display:grid; grid-template-columns:340px 1fr; gap:26px; max-width:1180px; }
+  @media (max-width:900px){ .wrap{ grid-template-columns:1fr; } }
+
+  .panel { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:18px; }
+  label { display:block; font-size:12px; opacity:.7; margin:12px 0 5px; }
+  input[type=text], input[type=url], input[type=email], select {
+    width:100%; padding:9px 11px; border-radius:7px; border:1px solid #30363d;
+    background:#0d1117; color:#e6edf3; font-size:14px; font-family:inherit; }
+  input[type=color] { width:100%; height:36px; padding:2px; border-radius:7px;
+    border:1px solid #30363d; background:#0d1117; }
+  input[type=range] { width:100%; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .btn { display:block; width:100%; margin-top:10px; padding:12px; border:0; border-radius:8px;
+         font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;
+         background:#238636; color:#fff; }
+  .btn.alt { background:#1f6feb; }
+  .btn.ghost { background:#21262d; color:#e6edf3; border:1px solid #30363d; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  #preview { width:100%; border-radius:10px; display:block; background:#fff;
+             box-shadow:0 18px 50px rgba(0,0,0,.55); }
+  .note { font-size:12px; line-height:1.85; opacity:.65; margin-top:14px; }
+  .note b { color:#7ee787; font-weight:600; }
+  #log { font-size:12px; margin-top:10px; padding:10px; border-radius:7px;
+         background:#0d1117; border:1px solid #30363d; min-height:38px; white-space:pre-line; }
+  h3 { font-size:13px; margin:22px 0 0; padding-top:14px; border-top:1px solid #30363d; opacity:.85; }
+  h3:first-of-type { border-top:0; padding-top:0; margin-top:0; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+</head>
+<body>
+
+<h1>AR名刺スタジオ</h1>
+<p class="sub">名刺デザイン（QR入り）と、MindAR用のマーカーファイル <code>targets.mind</code> をこの1ページで作れます。</p>
+
+<div class="wrap">
+  <div class="panel">
+    <h3>QRの中身</h3>
+    <label>ARページのURL（QRを読むと開くサイト）</label>
+    <input type="url" id="f-url" value="https://USERNAME.github.io/ar-meishi/">
+
+    <h3>名刺の内容</h3>
+    <label>名前</label>
+    <input type="text" id="f-name" value="稲垣 篤">
+    <label>英字表記（ローマ字）</label>
+    <input type="text" id="f-en" value="ATSUSHI INAGAKI">
+    <div class="row">
+      <div><label>会社 / 屋号</label><input type="text" id="f-org" value="inaphy.ai"></div>
+      <div><label>肩書</label><input type="text" id="f-title" value="Founder"></div>
+    </div>
+    <label>メール</label>
+    <input type="email" id="f-mail" value="inaphy.ai@gmail.com">
+    <label>電話 / その他</label>
+    <input type="text" id="f-tel" value="">
+
+    <h3>デザイン</h3>
+    <div class="row">
+      <div><label>アクセント色 1</label><input type="color" id="f-c1" value="#3f7dfb"></div>
+      <div><label>アクセント色 2</label><input type="color" id="f-c2" value="#00d4b8"></div>
+    </div>
+    <label>背景</label>
+    <select id="f-bg">
+      <option value="light">ライト（白地・黒文字）</option>
+      <option value="dark">ダーク（濃紺地・白文字）</option>
+    </select>
+    <label>特徴パターンの量 <span id="f-pat-v">14</span> ブロック <span style="opacity:.5">（多いほどAR認識が安定）</span></label>
+    <input type="range" id="f-pat" min="0" max="30" value="14">
+    <label>パターンの並び（シード） <span id="f-seed-v">7</span></label>
+    <input type="range" id="f-seed" min="1" max="40" value="7">
+
+    <h3>書き出し</h3>
+    <button class="btn ghost" id="b-marker">① マーカー画像 card-marker.png</button>
+    <button class="btn alt"   id="b-mind">② targets.mind を作る（数十秒）</button>
+    <button class="btn"       id="b-print">③ 印刷用 card-print.png（塗り足し3mm・300dpi）</button>
+    <div id="log">準備完了</div>
+  </div>
+
+  <div class="panel">
+    <canvas id="preview"></canvas>
+    <div class="note">
+      <b>使い方</b><br>
+      1. 上のURLを GitHub Pages の公開URLに書き換える<br>
+      2. ①②③ をこの順に押してダウンロード<br>
+      3. <code>card-marker.png</code> と <code>targets.mind</code> をリポジトリの <code>assets/</code> に置く<br>
+      4. <code>card-print.png</code> を名刺印刷に入稿<br><br>
+      <b>AR認識を安定させるコツ</b><br>
+      ・白ベタの余白を減らし、非対称な模様を入れる（パターン量を10以上に）<br>
+      ・QRコードだけだと似た模様の繰り返しで弱いので、模様＋文字＋QRの組み合わせが効く<br>
+      ・つや消し（マット）紙で印刷する。光沢紙は反射でトラッキングが飛びやすい<br>
+      ・デザインを変えたら必ず ①→② をやり直す（画像と .mind は必ずペア）
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- 定数 ---------- */
+const DPI    = 300;
+const MM     = mm => Math.round(mm / 25.4 * DPI);
+const CARD_W = 91, CARD_H = 55, BLEED = 3;   // mm（日本の標準名刺）
+
+const cv  = document.getElementById('preview');
+const log = t => document.getElementById('log').textContent = t;
+
+/* ---------- 決定的な擬似乱数（シード付き） ---------- */
+function rng(seed) {
+  let s = seed * 9301 + 49297;
+  return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+}
+
+/* ---------- 名刺を描く ---------- */
+function draw(canvas, { bleed = 0 } = {}) {
+  const v = id => document.getElementById(id).value.trim();
+  const dark = v('f-bg') === 'dark';
+  const c1 = v('f-c1'), c2 = v('f-c2');
+
+  const W = MM(CARD_W + bleed * 2), H = MM(CARD_H + bleed * 2);
+  const OX = MM(bleed), OY = MM(bleed);
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext('2d');
+
+  /* 背景（塗り足しまで塗る） */
+  g.fillStyle = dark ? '#101725' : '#ffffff';
+  g.fillRect(0, 0, W, H);
+
+  const px = mm => MM(mm);                 // mm → px
+  const X  = mm => OX + MM(mm);            // カード左端基準
+  const Y  = mm => OY + MM(mm);
+
+  /* --- 左端のアクセントバー（非対称・向き判定にも効く） --- */
+  const barGrad = g.createLinearGradient(0, OY, 0, OY + MM(CARD_H));
+  barGrad.addColorStop(0, c1); barGrad.addColorStop(1, c2);
+  g.fillStyle = barGrad;
+  g.fillRect(bleed ? 0 : X(0), bleed ? 0 : Y(0), X(4.5) - (bleed ? 0 : X(0)), bleed ? H : MM(CARD_H));
+
+  /* --- 特徴パターン（トラッキング用の非対称ブロック） --- */
+  const n = +v('f-pat'), rand = rng(+v('f-seed'));
+  const zoneX = 52, zoneY = 4, zoneW = 34, zoneH = 20;   // QRの上あたり
+  for (let i = 0; i < n; i++) {
+    const bw = 1.6 + rand() * 4.4, bh = 1.6 + rand() * 4.4;
+    const bx = zoneX + rand() * (zoneW - bw), by = zoneY + rand() * (zoneH - bh);
+    const r  = rand();
+    g.globalAlpha = 0.20 + rand() * 0.75;
+    g.fillStyle = r < 0.42 ? c1 : r < 0.78 ? c2 : (dark ? '#ffffff' : '#111827');
+    if (r < 0.30) {                       // 円
+      g.beginPath(); g.arc(X(bx + bw / 2), Y(by + bh / 2), px(bw / 2), 0, 7); g.fill();
+    } else if (r < 0.52) {                // 枠だけ
+      g.globalAlpha = 0.9; g.strokeStyle = g.fillStyle; g.lineWidth = px(0.45);
+      g.strokeRect(X(bx), Y(by), px(bw), px(bh));
+    } else {                              // 塗り
+      g.fillRect(X(bx), Y(by), px(bw), px(bh));
+    }
+  }
+  g.globalAlpha = 1;
+
+  /* --- テキスト --- */
+  const ink  = dark ? '#ffffff' : '#111827';
+  const ink2 = dark ? 'rgba(255,255,255,.62)' : 'rgba(17,24,39,.60)';
+  const F = (w, s) => `${w} ${px(s)}px "Hiragino Sans","Noto Sans JP",sans-serif`;
+
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = c1; g.font = F(700, 2.6);
+  g.fillText(v('f-org').toUpperCase(), X(9), Y(13));
+
+  g.fillStyle = ink; g.font = F(700, 6.4);
+  g.fillText(v('f-name'), X(9), Y(24));
+
+  g.fillStyle = ink2; g.font = F(500, 2.5);
+  g.fillText(v('f-en'), X(9.4), Y(29));
+
+  g.fillStyle = c2; g.font = F(600, 2.9);
+  g.fillText(v('f-title'), X(9), Y(35.5));
+
+  /* 区切り線 */
+  g.strokeStyle = dark ? 'rgba(255,255,255,.18)' : 'rgba(17,24,39,.16)';
+  g.lineWidth = px(0.25);
+  g.beginPath(); g.moveTo(X(9), Y(39)); g.lineTo(X(46), Y(39)); g.stroke();
+
+  g.fillStyle = ink2; g.font = F(400, 2.7);
+  let ty = 44;
+  if (v('f-mail')) { g.fillText(v('f-mail'), X(9), Y(ty)); ty += 4.4; }
+  if (v('f-tel'))  { g.fillText(v('f-tel'),  X(9), Y(ty)); }
+
+  /* --- QRコード --- */
+  const qrText = v('f-url');
+  const qr = qrcode(0, 'H');           // 誤り訂正レベル H（印刷向け）
+  qr.addData(qrText);
+  qr.make();
+  const mods = qr.getModuleCount();
+  const QS = 24, QX = 60, QY = 26;     // mm：QRのサイズと位置
+  const cell = px(QS) / mods;
+
+  g.fillStyle = '#ffffff';             // 静穏地帯（必須）
+  g.fillRect(X(QX - 2), Y(QY - 2), px(QS + 4), px(QS + 4));
+  g.fillStyle = '#000000';
+  for (let r = 0; r < mods; r++)
+    for (let c = 0; c < mods; c++)
+      if (qr.isDark(r, c))
+        g.fillRect(X(QX) + c * cell, Y(QY) + r * cell, cell + 0.8, cell + 0.8);
+
+  g.fillStyle = ink2; g.font = F(500, 2.2);
+  g.textAlign = 'center';
+  g.fillText('SCAN ME → AR', X(QX + QS / 2), Y(QY + QS + 4.2));
+  g.textAlign = 'left';
+
+  /* --- 塗り足しガイド（プレビューのみ） --- */
+  if (bleed && canvas.dataset.guide === '1') {
+    g.strokeStyle = 'rgba(255,0,0,.5)'; g.lineWidth = 2;
+    g.strokeRect(OX, OY, MM(CARD_W), MM(CARD_H));
+  }
+  return canvas;
+}
+
+/* ---------- 保存 ---------- */
+function save(canvas, filename) {
+  canvas.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }, 'image/png');
+}
+const off = () => document.createElement('canvas');
+
+/* ---------- UI ---------- */
+const render = () => {
+  document.getElementById('f-pat-v').textContent  = document.getElementById('f-pat').value;
+  document.getElementById('f-seed-v').textContent = document.getElementById('f-seed').value;
+  try { draw(cv, { bleed: 0 }); } catch (e) { log('描画エラー: ' + e.message); }
+};
+document.querySelectorAll('input,select').forEach(el => el.addEventListener('input', render));
+render();
+
+document.getElementById('b-marker').onclick = () => {
+  save(draw(off(), { bleed: 0 }), 'card-marker.png');
+  log('card-marker.png を保存しました。\nこの画像で ② targets.mind を作ってください。');
+};
+
+document.getElementById('b-print').onclick = () => {
+  save(draw(off(), { bleed: BLEED }), 'card-print.png');
+  log('card-print.png を保存しました（97×61mm / 300dpi・塗り足し3mm込み）。');
+};
+
+document.getElementById('b-mind').onclick = async () => {
+  const btn = document.getElementById('b-mind');
+  const C = window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.Compiler;
+  if (!C) { log('MindARコンパイラを読み込めませんでした。\nオンライン版をお使いください:\nhttps://hiukim.github.io/mind-ar-js-doc/tools/compile'); return; }
+
+  btn.disabled = true;
+  log('画像を準備中…');
+  try {
+    // マーカー画像は 1024px 幅程度が最適（大きすぎると遅く、小さすぎると精度低下）
+    const src = draw(off(), { bleed: 0 });
+    const tgt = off();
+    const scale = 1024 / src.width;
+    tgt.width = 1024; tgt.height = Math.round(src.height * scale);
+    tgt.getContext('2d').drawImage(src, 0, 0, tgt.width, tgt.height);
+
+    const img = new Image();
+    await new Promise(res => { img.onload = res; img.src = tgt.toDataURL('image/png'); });
+
+    const compiler = new C();
+    await compiler.compileImageTargets([img], p => log('コンパイル中… ' + p.toFixed(1) + '%'));
+    const buf = await compiler.exportData();
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf])); a.download = 'targets.mind'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    log('targets.mind を保存しました。assets/ に置いてください。');
+  } catch (e) {
+    console.error(e);
+    log('失敗: ' + e.message + '\nオンライン版: https://hiukim.github.io/mind-ar-js-doc/tools/compile');
+  } finally { btn.disabled = false; }
+};
+</script>
+</body>
+</html>

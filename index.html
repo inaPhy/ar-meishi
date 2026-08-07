@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>AR 名刺</title>
+<style>
+  :root { --accent:#3f7dfb; --accent2:#00d4b8; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#0b0e14; color:#fff;
+              font-family:"Hiragino Sans","Noto Sans JP",system-ui,-apple-system,sans-serif; }
+  #ar-container { position:fixed; inset:0; }
+  #ar-container canvas, #ar-container video { width:100% !important; height:100% !important; object-fit:cover; }
+
+  .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+             justify-content:center; text-align:center; padding:28px; gap:18px; z-index:10; }
+
+  /* --- スタート画面 --- */
+  #start { background:radial-gradient(120% 100% at 50% 0%, #1b2440 0%, #0b0e14 70%); }
+  #start h1 { font-size:22px; margin:0; letter-spacing:.04em; }
+  #start p  { font-size:14px; line-height:1.8; opacity:.75; margin:0; max-width:340px; }
+  .btn { appearance:none; border:0; border-radius:999px; padding:15px 40px; font-size:16px;
+         font-weight:700; color:#fff; background:linear-gradient(135deg,var(--accent),var(--accent2));
+         box-shadow:0 8px 30px rgba(63,125,251,.4); cursor:pointer; }
+  .btn:active { transform:scale(.97); }
+
+  /* --- スキャン中ガイド --- */
+  #scan { pointer-events:none; opacity:0; transition:opacity .3s; z-index:5; }
+  #scan.show { opacity:1; }
+  .reticle { width:min(72vw,300px); aspect-ratio:91/55; border-radius:10px; position:relative; }
+  .reticle i { position:absolute; width:26px; height:26px; border:3px solid rgba(255,255,255,.9); }
+  .reticle i:nth-child(1){ top:0; left:0;  border-right:0; border-bottom:0; border-radius:10px 0 0 0; }
+  .reticle i:nth-child(2){ top:0; right:0; border-left:0;  border-bottom:0; border-radius:0 10px 0 0; }
+  .reticle i:nth-child(3){ bottom:0;left:0; border-right:0; border-top:0;   border-radius:0 0 0 10px; }
+  .reticle i:nth-child(4){ bottom:0;right:0;border-left:0;  border-top:0;   border-radius:0 0 10px 0; }
+  #scan .hint { margin-top:20px; font-size:14px; background:rgba(0,0,0,.5);
+                padding:9px 18px; border-radius:999px; backdrop-filter:blur(8px); }
+
+  /* --- 認識時に出るリンク --- */
+  #info { position:fixed; left:0; right:0; bottom:0; z-index:8;
+          padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+          display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+          transform:translateY(130%); transition:transform .45s cubic-bezier(.2,.9,.25,1); }
+  #info.show { transform:translateY(0); }
+  #info a { text-decoration:none; color:#fff; font-size:14px; font-weight:600;
+            padding:13px 22px; border-radius:999px; background:rgba(20,26,40,.72);
+            border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(14px); }
+
+  #err { display:none; z-index:20; background:#0b0e14; }
+  #err p { font-size:14px; line-height:1.9; opacity:.85; max-width:340px; white-space:pre-line; }
+  .hidden { display:none !important; }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="ar-container"></div>
+
+<div class="overlay" id="scan">
+  <div class="reticle"><i></i><i></i><i></i><i></i></div>
+  <div class="hint">名刺のおもて面にカメラを向けてください</div>
+</div>
+
+<div id="info">
+  <a id="link-web"  href="#" target="_blank" rel="noopener">Webサイト</a>
+  <a id="link-mail" href="#">メール</a>
+</div>
+
+<div class="overlay" id="start">
+  <h1>AR 名刺</h1>
+  <p>カメラを起動して、名刺のおもて面をうつすと 3D オブジェクトが浮かび上がります。</p>
+  <button class="btn" id="btn-start">AR を開始</button>
+  <p style="font-size:12px;opacity:.5">カメラの使用許可が必要です</p>
+</div>
+
+<div class="overlay" id="err">
+  <h1 style="font-size:18px;margin:0">カメラを起動できませんでした</h1>
+  <p id="err-msg"></p>
+  <button class="btn" onclick="location.reload()">再読み込み</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { MindARThree } from 'mindar-image-three';
+
+/* =======================================================================
+   設定 — ここだけ書き換えれば OK
+   ======================================================================= */
+const CONFIG = {
+  targetSrc : './assets/targets.mind',  // card-studio.html で作った .mind
+  cardAspect: 55 / 91,                  // 名刺の 高さ÷幅（日本の標準名刺 91×55mm）
+  name      : 'Atsushi Inagaki',
+  title     : 'Founder',
+  website   : 'https://example.com',
+  email     : 'inaphy.ai@gmail.com',
+  color1    : 0x3f7dfb,
+  color2    : 0x00d4b8,
+};
+/* ======================================================================= */
+
+document.getElementById('link-web').href  = CONFIG.website;
+document.getElementById('link-mail').href = 'mailto:' + CONFIG.email;
+
+const $start = document.getElementById('start');
+const $scan  = document.getElementById('scan');
+const $info  = document.getElementById('info');
+const $err   = document.getElementById('err');
+
+document.getElementById('btn-start').addEventListener('click', boot, { once:true });
+
+async function boot() {
+  $start.classList.add('hidden');
+  try {
+    await run();
+  } catch (e) {
+    console.error(e);
+    $scan.classList.remove('show');
+    $err.style.display = 'flex';
+    document.getElementById('err-msg').textContent =
+      (e && e.message ? e.message : String(e)) +
+      '\n\nHTTPS で開いているか、カメラを他のアプリが使っていないかご確認ください。';
+  }
+}
+
+async function run() {
+  const mindarThree = new MindARThree({
+    container: document.querySelector('#ar-container'),
+    imageTargetSrc: CONFIG.targetSrc,
+    uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+    filterMinCF: 0.0001,   // 追従のなめらかさ（小さいほど滑らか・遅延増）
+    filterBeta: 0.001,
+  });
+
+  const { renderer, scene, camera } = mindarThree;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const anchor = mindarThree.addAnchor(0);
+  const group  = new THREE.Group();
+  anchor.group.add(group);
+
+  /* ---------- ライティング ---------- */
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x223355, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(1, 1.5, 2);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(CONFIG.color2, 1.4);
+  rim.position.set(-1.5, -1, 1);
+  scene.add(rim);
+
+  /* ---------- 名刺面に重なる発光フレーム ---------- */
+  const frameMat = new THREE.MeshBasicMaterial({
+    color: CONFIG.color1, transparent:true, opacity:0.16,
+    side: THREE.DoubleSide, depthWrite:false,
+  });
+  const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.0, CONFIG.cardAspect), frameMat);
+  frame.position.z = 0.002;
+  group.add(frame);
+
+  /* ---------- メインの 3D オブジェクト ---------- */
+  const core = new THREE.Group();
+  core.position.set(0, 0, 0.26);
+  group.add(core);
+
+  const solid = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.16, 0),
+    new THREE.MeshStandardMaterial({
+      color: CONFIG.color1, metalness:0.55, roughness:0.22, flatShading:true,
+    })
+  );
+  core.add(solid);
+
+  const wire = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(0.225, 1)),
+    new THREE.LineBasicMaterial({ color: CONFIG.color2, transparent:true, opacity:0.75 })
+  );
+  core.add(wire);
+
+  const rings = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const r = new THREE.Mesh(
+      new THREE.TorusGeometry(0.30 + i * 0.045, 0.004, 8, 90),
+      new THREE.MeshBasicMaterial({ color: i % 2 ? CONFIG.color2 : CONFIG.color1,
+                                    transparent:true, opacity:0.6 })
+    );
+    r.rotation.x = Math.PI / 2 + (i - 1) * 0.42;
+    r.rotation.y = i * 0.5;
+    rings.add(r);
+  }
+  core.add(rings);
+
+  const label = makeLabel(CONFIG.name, CONFIG.title);
+  label.position.set(0, -0.30, 0.30);
+  group.add(label);
+
+  /* ---------- 認識イベント ---------- */
+  let visible = false;
+  anchor.onTargetFound = () => {
+    visible = true;
+    $scan.classList.remove('show');
+    $info.classList.add('show');
+  };
+  anchor.onTargetLost = () => {
+    visible = false;
+    $scan.classList.add('show');
+    $info.classList.remove('show');
+  };
+
+  await mindarThree.start();
+  $scan.classList.add('show');
+
+  /* ---------- 描画ループ ---------- */
+  const clock = new THREE.Clock();
+  let appear = 0;
+  renderer.setAnimationLoop(() => {
+    const dt = clock.getDelta();
+    const t  = clock.getElapsedTime();
+
+    appear += ((visible ? 1 : 0) - appear) * Math.min(1, dt * 6);
+    core.scale.setScalar(0.001 + appear);
+    label.scale.setScalar(0.001 + appear);
+    frameMat.opacity = 0.16 * appear;
+
+    solid.rotation.y += dt * 0.80;
+    solid.rotation.x += dt * 0.32;
+    wire.rotation.y  -= dt * 0.35;
+    wire.rotation.z  += dt * 0.18;
+    rings.rotation.z += dt * 0.50;
+    rings.rotation.x  = Math.sin(t * 0.4) * 0.25;
+    core.position.z   = 0.26 + Math.sin(t * 1.5) * 0.022;
+
+    renderer.render(scene, camera);
+  });
+}
+
+/* 文字テクスチャの板を作る */
+function makeLabel(name, title) {
+  const W = 1024, H = 256;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+
+  const grad = g.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0,   'rgba(12,16,28,0)');
+  grad.addColorStop(0.5, 'rgba(12,16,28,0.82)');
+  grad.addColorStop(1,   'rgba(12,16,28,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, W, H);
+
+  g.textAlign = 'center';
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 92px "Hiragino Sans","Noto Sans JP",sans-serif';
+  g.fillText(name, W / 2, 118);
+  g.fillStyle = '#7fe9dc';
+  g.font = '500 50px "Hiragino Sans","Noto Sans JP",sans-serif';
+  g.fillText(title, W / 2, 186);
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(0.72, 0.18),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+  );
+}
+</script>
+</body>
+</html>
