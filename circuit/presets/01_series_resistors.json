@@ -1,0 +1,114 @@
+{
+  "version": "1.1",
+  "title": "抵抗の直列回路",
+  "components": [
+    {
+      "id": "cTL",
+      "type": "wire_l",
+      "x": 2,
+      "y": 2,
+      "rotation": 1,
+      "value": 0
+    },
+    {
+      "id": "cTR",
+      "type": "wire_l",
+      "x": 6,
+      "y": 2,
+      "rotation": 2,
+      "value": 0
+    },
+    {
+      "id": "cBR",
+      "type": "wire_l",
+      "x": 6,
+      "y": 4,
+      "rotation": 3,
+      "value": 0
+    },
+    {
+      "id": "cBL",
+      "type": "wire_l",
+      "x": 2,
+      "y": 4,
+      "rotation": 0,
+      "value": 0
+    },
+    {
+      "id": "wL3",
+      "type": "wire",
+      "x": 2,
+      "y": 3,
+      "rotation": 1,
+      "value": 0
+    },
+    {
+      "id": "wR3",
+      "type": "wire",
+      "x": 6,
+      "y": 3,
+      "rotation": 1,
+      "value": 0
+    },
+    {
+      "id": "r1",
+      "type": "resistor",
+      "x": 3,
+      "y": 2,
+      "rotation": 0,
+      "value": 20
+    },
+    {
+      "id": "r2",
+      "type": "resistor",
+      "x": 4,
+      "y": 2,
+      "rotation": 0,
+      "value": 30
+    },
+    {
+      "id": "r3",
+      "type": "resistor",
+      "x": 5,
+      "y": 2,
+      "rotation": 0,
+      "value": 50
+    },
+    {
+      "id": "w1",
+      "type": "wire",
+      "x": 3,
+      "y": 4,
+      "rotation": 0,
+      "value": 0
+    },
+    {
+      "id": "bat",
+      "type": "battery",
+      "x": 4,
+      "y": 4,
+      "rotation": 2,
+      "value": 6,
+      "rInt": 0.01
+    },
+    {
+      "id": "w2",
+      "type": "wire",
+      "x": 5,
+      "y": 4,
+      "rotation": 0,
+      "value": 0
+    }
+  ],
+  "settings": {
+    "darkMode": false,
+    "absMode": true,
+    "show3d": true,
+    "showParticles": false,
+    "showResults": false,
+    "isElectronMode": false,
+    "timeScale": 0.3,
+    "showIllustrations": false,
+    "toolbarVisibility": {}
+  }
+}

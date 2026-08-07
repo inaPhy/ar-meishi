@@ -1,0 +1,98 @@
+{
+  "version": "1.1",
+  "title": "コイルの過渡現象（RL）",
+  "components": [
+    {
+      "id": "c1",
+      "type": "wire_l",
+      "x": 2,
+      "y": 2,
+      "rotation": 1,
+      "value": 0
+    },
+    {
+      "id": "R",
+      "type": "resistor",
+      "x": 3,
+      "y": 2,
+      "rotation": 0,
+      "value": 5
+    },
+    {
+      "id": "X",
+      "type": "inductor",
+      "x": 4,
+      "y": 2,
+      "rotation": 0,
+      "value": 1000
+    },
+    {
+      "id": "c2",
+      "type": "wire_l",
+      "x": 5,
+      "y": 2,
+      "rotation": 2,
+      "value": 0
+    },
+    {
+      "id": "w1",
+      "type": "wire",
+      "x": 5,
+      "y": 3,
+      "rotation": 1,
+      "value": 0
+    },
+    {
+      "id": "c3",
+      "type": "wire_l",
+      "x": 5,
+      "y": 4,
+      "rotation": 3,
+      "value": 0
+    },
+    {
+      "id": "w2",
+      "type": "wire",
+      "x": 4,
+      "y": 4,
+      "rotation": 0,
+      "value": 0
+    },
+    {
+      "id": "bat",
+      "type": "battery",
+      "x": 3,
+      "y": 4,
+      "rotation": 2,
+      "value": 6,
+      "rInt": 0.01
+    },
+    {
+      "id": "c4",
+      "type": "wire_l",
+      "x": 2,
+      "y": 4,
+      "rotation": 0,
+      "value": 0
+    },
+    {
+      "id": "w3",
+      "type": "wire",
+      "x": 2,
+      "y": 3,
+      "rotation": 1,
+      "value": 0
+    }
+  ],
+  "settings": {
+    "darkMode": false,
+    "absMode": true,
+    "show3d": true,
+    "showParticles": false,
+    "showResults": false,
+    "isElectronMode": false,
+    "timeScale": 0.3,
+    "showIllustrations": false,
+    "toolbarVisibility": {}
+  }
+}
