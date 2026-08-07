@@ -36,15 +36,27 @@
   #scan .hint { margin-top:20px; font-size:14px; background:rgba(0,0,0,.5);
                 padding:9px 18px; border-radius:999px; backdrop-filter:blur(8px); }
 
+  /* --- 認識時に出る回路名 --- */
+  #chip { position:fixed; top:calc(14px + env(safe-area-inset-top)); left:50%; z-index:8;
+          transform:translate(-50%,-160%); transition:transform .4s cubic-bezier(.2,.9,.25,1);
+          background:rgba(20,26,40,.72); border:1px solid rgba(255,255,255,.18);
+          backdrop-filter:blur(14px); border-radius:14px; padding:9px 16px; text-align:center;
+          max-width:min(92vw,420px); }
+  #chip.show { transform:translate(-50%,0); }
+  #chip b { font-size:14px; font-weight:700; letter-spacing:.02em; }
+  #chip span { display:block; margin-top:3px; font-size:11.5px; opacity:.7;
+               font-family:ui-monospace,"SF Mono",Menlo,monospace; }
+
   /* --- 認識時に出るリンク --- */
   #info { position:fixed; left:0; right:0; bottom:0; z-index:8;
           padding:20px 20px calc(20px + env(safe-area-inset-bottom));
           display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
           transform:translateY(130%); transition:transform .45s cubic-bezier(.2,.9,.25,1); }
   #info.show { transform:translateY(0); }
-  #info a { text-decoration:none; color:#fff; font-size:14px; font-weight:600;
-            padding:13px 22px; border-radius:999px; background:rgba(20,26,40,.72);
-            border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(14px); }
+  #info a, #info button { text-decoration:none; color:#fff; font-size:14px; font-weight:600;
+            font-family:inherit; padding:13px 22px; border-radius:999px; cursor:pointer;
+            background:rgba(20,26,40,.72); border:1px solid rgba(255,255,255,.18);
+            backdrop-filter:blur(14px); }
 
   #err { display:none; z-index:20; background:#0b0e14; }
   #err p { font-size:14px; line-height:1.9; opacity:.85; max-width:340px; white-space:pre-line; }
@@ -70,9 +82,12 @@
   <div class="hint">名刺にカメラを向けてください</div>
 </div>
 
+<div id="chip"><b id="chip-name"></b><span id="chip-detail"></span></div>
+
 <div id="info">
   <a id="link-web"  href="#" target="_blank" rel="noopener">Webサイト</a>
   <a id="link-mail" href="#">メール</a>
+  <button id="btn-shuffle" type="button">別の回路</button>
 </div>
 
 <div class="overlay" id="start">
@@ -96,14 +111,27 @@ import { MindARThree } from 'mindar-image-three';
    設定 — ここだけ書き換えれば OK
    ======================================================================= */
 const CONFIG = {
-  targetSrc : './assets/targets.mind',  // card-studio.html で作った .mind
-  cardAspect: 55 / 91,                  // 名刺の 高さ÷幅（日本の標準名刺 91×55mm）
+  targetSrc : './assets/targets.mind',  // マーカー画像から作った .mind
+  cardAspect: 55 / 91,                  // マーカー画像の 高さ÷幅
   name      : '稲垣 惇史',
   title     : '弓削商船高等専門学校',
   website   : 'https://d-o-b.sakura.ne.jp/inaCore/html/TeachingMaterials/',
   email     : 'inaphy.ai@gmail.com',
   color1    : 0x3f7dfb,
   color2    : 0x00d4b8,
+};
+
+// 3DCircuit の回路を名刺の上に出す設定
+const CIRCUIT = {
+  enabled  : true,
+  mode     : 'random',  // 'random' = 見るたびランダム / 'daily' = 日替わり（同じ日は同じ回路）
+  fill     : 0.80,      // マーカーの横幅に対する回路の幅（0〜1）
+  zScale   : 14,        // 電位1Vあたりの高さ（3DCircuit本体は30。名刺では低めが見やすい）
+  lift     : 0.015,     // 名刺表面からの浮き
+  timeScale: 0.35,      // シミュレーションの速さ（1.0が実時間）
+  simHz    : 20,        // 立体の再計算頻度[Hz]。下げると軽くなる
+  particleHz: 30,       // 電荷の更新頻度[Hz]。1回あたり4000個ぶんの計算が走るので30程度が適当
+  electron : false,     // true にすると電子（負電荷）の向きで流れる
 };
 /* ======================================================================= */
 
@@ -113,6 +141,7 @@ document.getElementById('link-mail').href = 'mailto:' + CONFIG.email;
 const $start = document.getElementById('start');
 const $scan  = document.getElementById('scan');
 const $info  = document.getElementById('info');
+const $chip  = document.getElementById('chip');
 const $err   = document.getElementById('err');
 
 document.getElementById('btn-start').addEventListener('click', boot, { once:true });
@@ -129,6 +158,48 @@ async function boot() {
       (e && e.message ? e.message : String(e)) +
       '\n\nHTTPS で開いているか、カメラを他のアプリが使っていないかご確認ください。';
   }
+}
+
+/* ---------- 外部スクリプトを順番に読む ---------- */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('読み込み失敗: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+/* classic script の class / const は window に載らないので橋渡しする */
+function exposeGlobals() {
+  const s = document.createElement('script');
+  s.textContent = `
+    window.Simulator = Simulator;
+    window.Simulator3D = Simulator3D;
+    window.CIRCUIT_PRESETS = CIRCUIT_PRESETS;
+  `;
+  document.head.appendChild(s);
+}
+
+/* ---------- 3DCircuit 一式を読み込む ---------- */
+async function loadCircuitEngine() {
+  // simulator.js は math.js（行列演算）に依存
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js');
+
+  // 原本スクリプトが参照するグローバルを用意してから読む
+  window.THREE = THREE;               // three 0.160 を THREE として見せる
+  window.showIllustrations = false;   // 図記号モード（main.js のフラグ）
+  window.isElectronMode = CIRCUIT.electron;
+
+  await loadScript('./circuit/simulator.js');
+  await loadScript('./circuit/simulator3d.js');
+  await loadScript('./circuit/netlist.js');
+  await loadScript('./circuit/particles.js');
+  await loadScript('./circuit/circuits.js');
+  exposeGlobals();
+
+  if (!window.Simulator3D) throw new Error('Simulator3D を読み込めませんでした');
 }
 
 async function run() {
@@ -149,32 +220,234 @@ async function run() {
 
   /* ---------- ライティング ---------- */
   scene.add(new THREE.HemisphereLight(0xffffff, 0x223355, 1.6));
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  const key = new THREE.DirectionalLight(0xffffff, 2.0);
   key.position.set(1, 1.5, 2);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(CONFIG.color2, 1.4);
+  const rim = new THREE.DirectionalLight(CONFIG.color2, 1.1);
   rim.position.set(-1.5, -1, 1);
   scene.add(rim);
 
   /* ---------- 名刺面に重なる発光フレーム ---------- */
   const frameMat = new THREE.MeshBasicMaterial({
-    color: CONFIG.color1, transparent:true, opacity:0.16,
+    color: CONFIG.color1, transparent:true, opacity:0.14,
     side: THREE.DoubleSide, depthWrite:false,
   });
   const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.0, CONFIG.cardAspect), frameMat);
   frame.position.z = 0.002;
   group.add(frame);
 
-  /* ---------- メインの 3D オブジェクト ---------- */
+  /* ---------- 名前ラベル ---------- */
+  const label = makeLabel(CONFIG.name, CONFIG.title);
+  label.position.set(0, -(CONFIG.cardAspect / 2) - 0.10, 0.05);
+  group.add(label);
+
+  /* ---------- 中身（回路 or フォールバック） ---------- */
+  const holder = new THREE.Group();
+  group.add(holder);
+
+  let circuit = null;
+  if (CIRCUIT.enabled) {
+    try {
+      await loadCircuitEngine();
+      circuit = setupCircuit(holder);
+    } catch (e) {
+      console.warn('回路エンジンを読み込めませんでした。標準の3Dに切り替えます。', e);
+      circuit = null;
+    }
+  }
+  const fallback = circuit ? null : makeFallbackObject(holder);
+
+  /* ---------- 認識イベント ---------- */
+  let visible = false;
+  anchor.onTargetFound = () => {
+    visible = true;
+    $scan.classList.remove('show');
+    $info.classList.add('show');
+    if (circuit) $chip.classList.add('show');
+  };
+  anchor.onTargetLost = () => {
+    visible = false;
+    $scan.classList.add('show');
+    $info.classList.remove('show');
+    $chip.classList.remove('show');
+  };
+
+  document.getElementById('btn-shuffle').addEventListener('click', () => {
+    if (circuit) circuit.shuffle();
+  });
+  if (!circuit) document.getElementById('btn-shuffle').style.display = 'none';
+
+  await mindarThree.start();
+  $scan.classList.add('show');
+
+  /* ---------- 描画ループ ---------- */
+  const clock = new THREE.Clock();
+  let appear = 0;
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t  = clock.getElapsedTime();
+
+    appear += ((visible ? 1 : 0) - appear) * Math.min(1, dt * 6);
+    frameMat.opacity = 0.14 * appear;
+    label.scale.setScalar(0.001 + appear);
+    holder.visible = appear > 0.01;
+
+    if (circuit) {
+      circuit.step(dt, appear);
+    } else if (fallback) {
+      fallback.step(dt, t, appear);
+    }
+
+    renderer.render(scene, camera);
+  });
+}
+
+/* =======================================================================
+   3DCircuit の回路をマーカー上に組み立てる
+   ======================================================================= */
+function setupCircuit(parent) {
+  const { Simulator, Simulator3D } = window;
+
+  /* Simulator3D は本来「自前のcanvasに描く」クラスなので、
+     レンダラー・カメラ・OrbitControls を作る init() だけ差し替えて、
+     生成した立体を MindAR のアンカーに載せる。 */
+  class ARCircuit3D extends Simulator3D {
+    constructor() { super(null); }
+
+    init() {
+      if (this.scene) return;
+      this.scene = new THREE.Group();          // Scene の代わりに Group を使う
+
+      this.gridLines = new THREE.Group();
+      this.gridLines.visible = false;          // ARでは方眼は出さない
+      this.scene.add(this.gridLines);
+
+      const geo = new THREE.SphereGeometry(4, 8, 8);
+      this.particleMesh = new THREE.InstancedMesh(
+        geo, new THREE.MeshBasicMaterial({ color: 0xff1493 }), 2000);
+      this.particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.scene.add(this.particleMesh);
+
+      this.negParticleMesh = new THREE.InstancedMesh(
+        geo, new THREE.MeshBasicMaterial({ color: 0x5c5cff }), 2000);
+      this.negParticleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.scene.add(this.negParticleMesh);
+
+      this.controls = { target: { set() {} } };  // build() が触るだけのダミー
+      this.isActive = true;
+    }
+
+    animate() {}            // 独自の描画ループは回さない（MindAR側で描く）
+    onWindowResize() {}
+    show() { this.isActive = true; if (!this.scene) this.init(); }
+
+    // Canvas テクスチャに色空間を指定（指定しないと色が白っぽくなる）
+    getComponentTexture(comp, hl = false) {
+      const tex = super.getComponentTexture(comp, hl);
+      if (tex && tex.colorSpace !== THREE.SRGBColorSpace) {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.needsUpdate = true;
+      }
+      return tex;
+    }
+  }
+
+  const sim3d = new ARCircuit3D();
+  sim3d.Z_SCALE = CIRCUIT.zScale;
+  sim3d.show();
+
+  const fitter = new THREE.Group();   // 縮尺と中心合わせ担当
+  fitter.add(sim3d.scene);
+  parent.add(fitter);
+
+  const sim = new Simulator();
+  let components = [], results = null, groundOffset = 0, netlist = null, baseScale = 1;
+
+  function load() {
+    const rand = (CIRCUIT.mode === 'daily') ? window.dailyRandom() : Math.random;
+    const picked = window.pickRandomCircuit(rand);
+    components = picked.components;
+
+    netlist = window.buildNetlist(components);
+    groundOffset = window.computeGroundOffset(netlist);
+
+    sim.reset();
+    const res = sim.solve(netlist, 1e-6);
+    if (!res.success) { console.warn('回路が解けません:', res.message); return false; }
+    results = window.applyGroundOffset(res, groundOffset);
+
+    sim3d.build(components);
+    sim3d.update(components, results);
+
+    /* --- 縮尺合わせ ---
+       素子の頂点は (comp.x - cx) * GRID_SCALE で置かれる。
+       セルの「範囲」の中心は cx より半セル右／半セル上にずれるので、その分を戻す。 */
+    const xs = components.map(c => c.x);
+    const cellsX = Math.max(...xs) - Math.min(...xs) + 1;
+    const unit = sim3d.GRID_SCALE;
+    baseScale = CIRCUIT.fill / (cellsX * unit);
+
+    fitter.scale.setScalar(baseScale);
+    fitter.position.set(0, 0, CIRCUIT.lift);
+    sim3d.scene.position.set(-unit / 2, unit / 2, 0);
+
+    /* --- 表示ラベル --- */
+    const parts = components
+      .filter(c => ['battery', 'resistor', 'bulb'].includes(c.type))
+      .map(c => c.type === 'battery' ? `${c.value}V`
+               : c.type === 'bulb'   ? `豆球${(+c.value).toFixed(1)}Ω`
+               : `${c.value}Ω`);
+    document.getElementById('chip-name').textContent = picked.name;
+    document.getElementById('chip-detail').textContent = parts.join('  ·  ');
+    return true;
+  }
+
+  if (!load()) throw new Error('サンプル回路を解けませんでした');
+
+  let simAcc = 0, partAcc = 0;
+  const simInterval  = 1 / CIRCUIT.simHz;
+  const partInterval = 1 / CIRCUIT.particleHz;
+
+  return {
+    shuffle() { load(); },
+    step(dt, appear) {
+      fitter.scale.setScalar(baseScale * (0.001 + appear));   // 出現アニメーション
+
+      const sdt = dt * CIRCUIT.timeScale;
+
+      // 立体の作り直しは重いので simHz に間引く
+      simAcc += sdt;
+      if (simAcc >= simInterval) {
+        const res = sim.solve(netlist, simAcc);
+        if (res.success) {
+          results = window.applyGroundOffset(res, groundOffset);
+          sim3d.update(components, results);
+        }
+        simAcc = 0;
+      }
+
+      // 電荷は1回で4000インスタンス分の行列を書くので particleHz に間引く
+      partAcc += sdt;
+      if (results && partAcc >= partInterval) {
+        window.advanceParticleProgress(components, results, partAcc, CIRCUIT.electron);
+        sim3d.updateParticles(components, results);
+        partAcc = 0;
+      }
+    },
+  };
+}
+
+/* =======================================================================
+   回路エンジンが読めなかったときの予備の3D
+   ======================================================================= */
+function makeFallbackObject(parent) {
   const core = new THREE.Group();
   core.position.set(0, 0, 0.26);
-  group.add(core);
+  parent.add(core);
 
   const solid = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.16, 0),
-    new THREE.MeshStandardMaterial({
-      color: CONFIG.color1, metalness:0.55, roughness:0.22, flatShading:true,
-    })
+    new THREE.MeshStandardMaterial({ color: CONFIG.color1, metalness:0.55, roughness:0.22, flatShading:true })
   );
   core.add(solid);
 
@@ -184,61 +457,15 @@ async function run() {
   );
   core.add(wire);
 
-  const rings = new THREE.Group();
-  for (let i = 0; i < 3; i++) {
-    const r = new THREE.Mesh(
-      new THREE.TorusGeometry(0.30 + i * 0.045, 0.004, 8, 90),
-      new THREE.MeshBasicMaterial({ color: i % 2 ? CONFIG.color2 : CONFIG.color1,
-                                    transparent:true, opacity:0.6 })
-    );
-    r.rotation.x = Math.PI / 2 + (i - 1) * 0.42;
-    r.rotation.y = i * 0.5;
-    rings.add(r);
-  }
-  core.add(rings);
-
-  const label = makeLabel(CONFIG.name, CONFIG.title);
-  label.position.set(0, -0.30, 0.30);
-  group.add(label);
-
-  /* ---------- 認識イベント ---------- */
-  let visible = false;
-  anchor.onTargetFound = () => {
-    visible = true;
-    $scan.classList.remove('show');
-    $info.classList.add('show');
+  return {
+    step(dt, t, appear) {
+      core.scale.setScalar(0.001 + appear);
+      solid.rotation.y += dt * 0.80;
+      solid.rotation.x += dt * 0.32;
+      wire.rotation.y  -= dt * 0.35;
+      core.position.z   = 0.26 + Math.sin(t * 1.5) * 0.022;
+    },
   };
-  anchor.onTargetLost = () => {
-    visible = false;
-    $scan.classList.add('show');
-    $info.classList.remove('show');
-  };
-
-  await mindarThree.start();
-  $scan.classList.add('show');
-
-  /* ---------- 描画ループ ---------- */
-  const clock = new THREE.Clock();
-  let appear = 0;
-  renderer.setAnimationLoop(() => {
-    const dt = clock.getDelta();
-    const t  = clock.getElapsedTime();
-
-    appear += ((visible ? 1 : 0) - appear) * Math.min(1, dt * 6);
-    core.scale.setScalar(0.001 + appear);
-    label.scale.setScalar(0.001 + appear);
-    frameMat.opacity = 0.16 * appear;
-
-    solid.rotation.y += dt * 0.80;
-    solid.rotation.x += dt * 0.32;
-    wire.rotation.y  -= dt * 0.35;
-    wire.rotation.z  += dt * 0.18;
-    rings.rotation.z += dt * 0.50;
-    rings.rotation.x  = Math.sin(t * 0.4) * 0.25;
-    core.position.z   = 0.26 + Math.sin(t * 1.5) * 0.022;
-
-    renderer.render(scene, camera);
-  });
 }
 
 /* 文字テクスチャの板を作る */
@@ -257,11 +484,11 @@ function makeLabel(name, title) {
 
   g.textAlign = 'center';
   g.fillStyle = '#ffffff';
-  g.font = 'bold 92px "Hiragino Sans","Noto Sans JP",sans-serif';
-  g.fillText(name, W / 2, 118);
+  g.font = 'bold 88px "Hiragino Sans","Noto Sans JP",sans-serif';
+  g.fillText(name, W / 2, 116);
   g.fillStyle = '#7fe9dc';
-  g.font = '500 50px "Hiragino Sans","Noto Sans JP",sans-serif';
-  g.fillText(title, W / 2, 186);
+  g.font = '500 46px "Hiragino Sans","Noto Sans JP",sans-serif';
+  g.fillText(title, W / 2, 184);
 
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
