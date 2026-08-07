@@ -372,8 +372,9 @@ async function setupCircuit(parent) {
   const simInterval = 1 / CIRCUIT.simHz;
   const stepDt = simInterval * CIRCUIT.timeScale / CIRCUIT.substeps;  // 実際の積分刻み
 
-  const fileList = await window.loadPresetIndex(CIRCUIT.dir);
-  console.log('回路プリセット:', fileList.length + '件', fileList);
+  const presetList = await window.loadPresetIndex(CIRCUIT.dir);
+  console.log('回路プリセット:', presetList.length + '件',
+              presetList.map(e => e.name || e.file).join(' / '));
 
   const sim = new Simulator();
   let components = [], results = null, netlist = null;
@@ -403,20 +404,25 @@ async function setupCircuit(parent) {
   }
 
   async function load() {
-    const fileName = window.pickPresetName(fileList, lastFile);
-    lastFile = fileName;
+    const entry = window.pickPreset(presetList, lastFile);
+    lastFile = entry.file;
 
-    const preset = await window.loadPresetFile(fileName, CIRCUIT.dir);
+    const preset = await window.loadPreset(entry, CIRCUIT.dir);
     components = preset.components;
     netlist = window.buildNetlist(components);
 
     /* --- 縮尺 ---
        素子の頂点は (comp.x - cx) * GRID_SCALE に置かれる。
        セルの「範囲」の中心は cx より半セル右／半セル上にずれるので、その分を戻す。 */
-    const xs = components.map(c => c.x);
+    const xs = components.map(c => c.x), ys = components.map(c => c.y);
     const cellsX = Math.max(...xs) - Math.min(...xs) + 1;
+    const cellsY = Math.max(...ys) - Math.min(...ys) + 1;
     const unit = sim3d.GRID_SCALE;
-    baseScale = CIRCUIT.fill / (cellsX * unit);
+    // 縦長の回路（三相交流など）が名刺からはみ出さないよう、幅と高さの両方で収める
+    baseScale = Math.min(
+      CIRCUIT.fill / (cellsX * unit),
+      CIRCUIT.fill * CONFIG.cardAspect / (cellsY * unit)
+    );
     fitter.scale.setScalar(baseScale);
     fitter.position.set(0, 0, CIRCUIT.lift);
     sim3d.scene.position.set(-unit / 2, unit / 2, 0);
