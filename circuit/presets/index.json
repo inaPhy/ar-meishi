@@ -1,10 +1,10 @@
 [
-  "01_series_resistors.json",
-  "02_parallel_resistors.json",
-  "03_bridge.json",
-  "04_rc_transient.json",
-  "05_rl_transient.json",
-  "06_three_phase_ac.json",
-  "07_rlc_series_ac.json",
-  "08_rlc_parallel_ac.json"
+  { "file": "01_series_resistors.json",  "name": "抵抗の直列回路" },
+  { "file": "02_parallel_resistors.json","name": "抵抗の並列回路" },
+  { "file": "03_bridge.json",            "name": "ブリッジ回路" },
+  { "file": "04_rc_transient.json",      "name": "コンデンサーの過渡現象（RC）" },
+  { "file": "05_rl_transient.json",      "name": "コイルの過渡現象（RL）" },
+  { "file": "06_three_phase_ac.json",    "name": "三相交流回路" },
+  { "file": "07_rlc_series_ac.json",     "name": "RLC直列交流回路" },
+  { "file": "08_rlc_parallel_ac.json",   "name": "RLC並列交流回路" }
 ]
