@@ -124,14 +124,17 @@ const CONFIG = {
 // 3DCircuit の回路を名刺の上に出す設定
 const CIRCUIT = {
   enabled  : true,
-  mode     : 'random',  // 'random' = 見るたびランダム / 'daily' = 日替わり（同じ日は同じ回路）
-  fill     : 0.80,      // マーカーの横幅に対する回路の幅（0〜1）
-  zScale   : 14,        // 電位1Vあたりの高さ（3DCircuit本体は30。名刺では低めが見やすい）
-  lift     : 0.015,     // 名刺表面からの浮き
-  timeScale: 0.35,      // シミュレーションの速さ（1.0が実時間）
-  simHz    : 20,        // 立体の再計算頻度[Hz]。下げると軽くなる
-  particleHz: 30,       // 電荷の更新頻度[Hz]。1回あたり4000個ぶんの計算が走るので30程度が適当
-  electron : false,     // true にすると電子（負電荷）の向きで流れる
+  dir      : './circuit/presets/',  // 回路JSONの置き場所（index.json でファイルを列挙）
+  fill     : 0.80,     // マーカーの横幅に対する回路の幅（0〜1）
+  maxHeight: 0.32,     // 電位の立体の高さ（マーカー幅を1としたときの値）
+                       // 回路ごとに電圧が違うので、高さはこの値に自動で合わせます
+  lift     : 0.015,    // 名刺表面からの浮き
+  timeScale: 0.35,     // シミュレーションの速さ（1.0が実時間）
+  simHz    : 20,       // 立体の再計算頻度[Hz]。下げると軽くなる
+  substeps : 4,        // 1回の再計算あたりの積分刻み数（過渡現象・振動の精度）
+  scanSec  : 4,        // 起動時に電位の振れ幅を調べる秒数（高さの自動調整用）
+  showParticles: false,// 電荷アニメーション。挙動が怪しいので既定はオフ
+  electron : false,    // true にすると電子（負電荷）の向きで流れる
 };
 /* ======================================================================= */
 
@@ -177,7 +180,6 @@ function exposeGlobals() {
   s.textContent = `
     window.Simulator = Simulator;
     window.Simulator3D = Simulator3D;
-    window.CIRCUIT_PRESETS = CIRCUIT_PRESETS;
   `;
   document.head.appendChild(s);
 }
@@ -249,7 +251,7 @@ async function run() {
   if (CIRCUIT.enabled) {
     try {
       await loadCircuitEngine();
-      circuit = setupCircuit(holder);
+      circuit = await setupCircuit(holder);
     } catch (e) {
       console.warn('回路エンジンを読み込めませんでした。標準の3Dに切り替えます。', e);
       circuit = null;
@@ -272,8 +274,12 @@ async function run() {
     $chip.classList.remove('show');
   };
 
-  document.getElementById('btn-shuffle').addEventListener('click', () => {
-    if (circuit) circuit.shuffle();
+  const $shuffle = document.getElementById('btn-shuffle');
+  $shuffle.addEventListener('click', async () => {
+    if (!circuit) return;
+    $shuffle.disabled = true;
+    try { await circuit.shuffle(); } catch (e) { console.error(e); }
+    $shuffle.disabled = false;
   });
   if (!circuit) document.getElementById('btn-shuffle').style.display = 'none';
 
@@ -305,7 +311,7 @@ async function run() {
 /* =======================================================================
    3DCircuit の回路をマーカー上に組み立てる
    ======================================================================= */
-function setupCircuit(parent) {
+async function setupCircuit(parent) {
   const { Simulator, Simulator3D } = window;
 
   /* Simulator3D は本来「自前のcanvasに描く」クラスなので、
@@ -326,12 +332,17 @@ function setupCircuit(parent) {
       this.particleMesh = new THREE.InstancedMesh(
         geo, new THREE.MeshBasicMaterial({ color: 0xff1493 }), 2000);
       this.particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.scene.add(this.particleMesh);
 
       this.negParticleMesh = new THREE.InstancedMesh(
         geo, new THREE.MeshBasicMaterial({ color: 0x5c5cff }), 2000);
       this.negParticleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.scene.add(this.negParticleMesh);
+
+      // 電荷を出さない設定のときはシーンに入れない
+      // （入れたまま更新しないと、原点に球が2000個たまって見えてしまう）
+      if (CIRCUIT.showParticles) {
+        this.scene.add(this.particleMesh);
+        this.scene.add(this.negParticleMesh);
+      }
 
       this.controls = { target: { set() {} } };  // build() が触るだけのダミー
       this.isActive = true;
@@ -353,85 +364,117 @@ function setupCircuit(parent) {
   }
 
   const sim3d = new ARCircuit3D();
-  sim3d.Z_SCALE = CIRCUIT.zScale;
   sim3d.show();
 
   const fitter = new THREE.Group();   // 縮尺と中心合わせ担当
   fitter.add(sim3d.scene);
   parent.add(fitter);
 
+  const simInterval = 1 / CIRCUIT.simHz;
+  const stepDt = simInterval * CIRCUIT.timeScale / CIRCUIT.substeps;  // 実際の積分刻み
+
+  const fileList = await window.loadPresetIndex(CIRCUIT.dir);
+  console.log('回路プリセット:', fileList.length + '件', fileList);
+
   const sim = new Simulator();
-  let components = [], results = null, groundOffset = 0, netlist = null, baseScale = 1;
+  let components = [], results = null, netlist = null;
+  let groundOffset = 0, baseScale = 1, lastFile = null;
 
-  function load() {
-    const rand = (CIRCUIT.mode === 'daily') ? window.dailyRandom() : Math.random;
-    const picked = window.pickRandomCircuit(rand);
-    components = picked.components;
+  /* --- 起動時に電位の振れ幅を先に調べる ---
+     直流・交流・過渡現象で電圧の桁が全く違うので、
+     この結果に合わせて Z_SCALE（高さ）と接地基準を自動で決めます。 */
+  function scanVoltageRange(nl) {
+    const scan = new Simulator();
+    let lo = Infinity, hi = -Infinity;
+    const note = v => { if (Number.isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } };
 
+    // 電池の上に描かれる「山」の頂点は（−端子の電位＋起電力）＝＋端子の電位なので、
+    // ノードの電位だけ見ておけば立体の高さは足りる。
+    const consume = res => {
+      if (!res || !res.success) return;
+      for (const k in res.voltages) note(res.voltages[k]);
+    };
+
+    consume(scan.solve(nl, 1e-6));
+    const steps = Math.ceil(CIRCUIT.scanSec / stepDt);
+    for (let i = 0; i < steps; i++) consume(scan.solve(nl, stepDt));
+
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi - lo < 1e-6) return { lo: 0, span: 1 };
+    return { lo, span: hi - lo };
+  }
+
+  async function load() {
+    const fileName = window.pickPresetName(fileList, lastFile);
+    lastFile = fileName;
+
+    const preset = await window.loadPresetFile(fileName, CIRCUIT.dir);
+    components = preset.components;
     netlist = window.buildNetlist(components);
-    groundOffset = window.computeGroundOffset(netlist);
 
-    sim.reset();
-    const res = sim.solve(netlist, 1e-6);
-    if (!res.success) { console.warn('回路が解けません:', res.message); return false; }
-    results = window.applyGroundOffset(res, groundOffset);
-
-    sim3d.build(components);
-    sim3d.update(components, results);
-
-    /* --- 縮尺合わせ ---
-       素子の頂点は (comp.x - cx) * GRID_SCALE で置かれる。
+    /* --- 縮尺 ---
+       素子の頂点は (comp.x - cx) * GRID_SCALE に置かれる。
        セルの「範囲」の中心は cx より半セル右／半セル上にずれるので、その分を戻す。 */
     const xs = components.map(c => c.x);
     const cellsX = Math.max(...xs) - Math.min(...xs) + 1;
     const unit = sim3d.GRID_SCALE;
     baseScale = CIRCUIT.fill / (cellsX * unit);
-
     fitter.scale.setScalar(baseScale);
     fitter.position.set(0, 0, CIRCUIT.lift);
     sim3d.scene.position.set(-unit / 2, unit / 2, 0);
 
+    /* --- 高さの自動調整 --- */
+    const range = scanVoltageRange(netlist);
+    groundOffset = range.lo;
+    sim3d.Z_SCALE = (CIRCUIT.maxHeight / baseScale) / range.span;
+
+    /* --- 初期状態を組み立てる --- */
+    sim.reset();
+    const res = sim.solve(netlist, 1e-6);
+    if (!res.success) throw new Error(fileName + ': ' + res.message);
+    results = window.applyGroundOffset(res, groundOffset);
+
+    sim3d.build(components);
+    sim3d.update(components, results);
+
     /* --- 表示ラベル --- */
+    const unitOf = { battery:'V', ac_source:'V', resistor:'Ω', bulb:'Ω',
+                     capacitor:'µF', inductor:'mH' };
     const parts = components
-      .filter(c => ['battery', 'resistor', 'bulb'].includes(c.type))
-      .map(c => c.type === 'battery' ? `${c.value}V`
-               : c.type === 'bulb'   ? `豆球${(+c.value).toFixed(1)}Ω`
-               : `${c.value}Ω`);
-    document.getElementById('chip-name').textContent = picked.name;
+      .filter(c => unitOf[c.type])
+      .map(c => `${(+c.value)}${unitOf[c.type]}` +
+                (c.type === 'ac_source' && c.freq ? ` ${c.freq}Hz` : ''));
+    document.getElementById('chip-name').textContent = preset.title;
     document.getElementById('chip-detail').textContent = parts.join('  ·  ');
-    return true;
+    console.log(`「${preset.title}」電位幅 ${range.span.toFixed(2)}V → Z_SCALE ${sim3d.Z_SCALE.toFixed(1)}`);
   }
 
-  if (!load()) throw new Error('サンプル回路を解けませんでした');
+  await load();
 
-  let simAcc = 0, partAcc = 0;
-  const simInterval  = 1 / CIRCUIT.simHz;
-  const partInterval = 1 / CIRCUIT.particleHz;
+  let wallAcc = 0;   // 実時間の積み上げ
 
   return {
-    shuffle() { load(); },
+    shuffle: load,
     step(dt, appear) {
       fitter.scale.setScalar(baseScale * (0.001 + appear));   // 出現アニメーション
 
-      const sdt = dt * CIRCUIT.timeScale;
+      // 実時間で 1/simHz 秒たつごとに、シミュレーション時間を
+      // (1/simHz × timeScale) 秒ぶんだけ substeps 回に分けて進める
+      wallAcc += dt;
+      if (wallAcc < simInterval) return;
+      wallAcc = 0;
 
-      // 立体の作り直しは重いので simHz に間引く
-      simAcc += sdt;
-      if (simAcc >= simInterval) {
-        const res = sim.solve(netlist, simAcc);
-        if (res.success) {
-          results = window.applyGroundOffset(res, groundOffset);
-          sim3d.update(components, results);
-        }
-        simAcc = 0;
-      }
+      // 積分は細かく、立体の作り直しは1回だけ（作り直しが一番重いため）
+      let res = null;
+      for (let i = 0; i < CIRCUIT.substeps; i++) res = sim.solve(netlist, stepDt);
+      if (!res || !res.success) return;
 
-      // 電荷は1回で4000インスタンス分の行列を書くので particleHz に間引く
-      partAcc += sdt;
-      if (results && partAcc >= partInterval) {
-        window.advanceParticleProgress(components, results, partAcc, CIRCUIT.electron);
+      results = window.applyGroundOffset(res, groundOffset);
+      sim3d.update(components, results);
+
+      if (CIRCUIT.showParticles) {
+        const sdt = stepDt * CIRCUIT.substeps;
+        window.advanceParticleProgress(components, results, sdt, CIRCUIT.electron);
         sim3d.updateParticles(components, results);
-        partAcc = 0;
       }
     },
   };
