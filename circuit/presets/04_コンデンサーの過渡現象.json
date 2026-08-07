@@ -11,9 +11,9 @@
       "pProgress": 0,
       "legProgress": {
         "left": 0,
-        "right": 0.21571826673129116,
+        "right": 0.42273826376376905,
         "top": 0,
-        "bottom": 0.7842817142423281
+        "bottom": 0.5772617107150456
       }
     },
     {
@@ -22,18 +22,18 @@
       "x": 3,
       "y": 2,
       "rotation": 0,
-      "value": 5,
-      "pProgress": 0.8921408755998068
+      "value": 100,
+      "pProgress": 0.7886308550121381
     },
     {
-      "id": "L",
-      "type": "inductor",
+      "id": "Cap",
+      "type": "capacitor",
       "x": 4,
       "y": 3,
-      "rotation": 1,
-      "value": 1000,
-      "lastClickTime": 1786097591467,
-      "pProgress": 0.89214086005915
+      "rotation": 3,
+      "value": 10000,
+      "lastClickTime": 1786097540190,
+      "pProgress": 0.21136913780357502
     },
     {
       "id": "c2",
@@ -42,13 +42,13 @@
       "y": 2,
       "rotation": 2,
       "value": 0,
-      "lastClickTime": 1786097592788,
+      "lastClickTime": 1786097539401,
       "pProgress": 0,
       "legProgress": {
-        "left": 0.7842817484494247,
+        "left": 0.5772617143997231,
         "right": 0,
         "top": 0,
-        "bottom": 0.21571826916428516
+        "bottom": 0.4227382713536602
       }
     },
     {
@@ -58,12 +58,12 @@
       "y": 4,
       "rotation": 3,
       "value": 0,
-      "lastClickTime": 1786097596964,
+      "lastClickTime": 1786097549264,
       "pProgress": 0,
       "legProgress": {
-        "left": 0.21571829771399842,
+        "left": 0.4227382705127981,
         "right": 0,
-        "top": 0.784281720278813,
+        "top": 0.5772617241250969,
         "bottom": 0
       }
     },
@@ -75,8 +75,8 @@
       "rotation": 1,
       "value": 6,
       "rInt": 0.01,
-      "lastClickTime": 1786097585560,
-      "pProgress": 0.10785913056192788
+      "lastClickTime": 1786097531560,
+      "pProgress": 0.2113691515275577
     },
     {
       "id": "c4",
@@ -88,22 +88,22 @@
       "pProgress": 0,
       "legProgress": {
         "left": 0,
-        "right": 0.7842817067911958,
-        "top": 0.215718293208806,
+        "right": 0.577261729246595,
+        "top": 0.4227382707534057,
         "bottom": 0
       }
     },
     {
-      "id": "1786097599878",
+      "id": "1786097546846",
       "type": "switch",
       "x": 3,
       "y": 4,
       "rotation": 0,
-      "value": 0,
+      "value": 1,
       "freq": 1,
       "phase": 90,
       "rInt": 0.001,
-      "pProgress": 0.10785914660440077
+      "pProgress": 0.21136913537670318
     }
   ],
   "settings": {

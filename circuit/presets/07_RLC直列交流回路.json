@@ -1,6 +1,5 @@
 {
   "version": "1.1",
-  "title": "RLC直列交流回路",
   "components": [
     {
       "id": "c1",
@@ -72,10 +71,11 @@
       "x": 4,
       "y": 4,
       "rotation": 2,
-      "value": 5,
+      "value": 10,
       "rInt": 0.01,
       "freq": 1.6,
-      "phase": 0
+      "phase": 0,
+      "lastClickTime": 1786097786824
     },
     {
       "id": "w3",
@@ -111,6 +111,21 @@
     "isElectronMode": false,
     "timeScale": 0.3,
     "showIllustrations": false,
-    "toolbarVisibility": {}
+    "toolbarVisibility": {
+      "battery": true,
+      "ac_source": true,
+      "resistor": true,
+      "bulb": true,
+      "capacitor": true,
+      "inductor": true,
+      "voltmeter": true,
+      "ammeter": true,
+      "wire": true,
+      "wire_l": true,
+      "wire_t": true,
+      "wire_cross": true,
+      "switch": true,
+      "undefined": true
+    }
   }
 }
