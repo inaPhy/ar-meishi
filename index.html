@@ -40,10 +40,11 @@
   #chip { position:fixed; top:calc(14px + env(safe-area-inset-top)); left:50%; z-index:8;
           transform:translate(-50%,-160%); transition:transform .4s cubic-bezier(.2,.9,.25,1);
           background:rgba(20,26,40,.72); border:1px solid rgba(255,255,255,.18);
-          backdrop-filter:blur(14px); border-radius:14px; padding:9px 16px; text-align:center;
-          max-width:min(92vw,420px); }
+          backdrop-filter:blur(14px); border-radius:14px; padding:9px 18px; text-align:center;
+          width:max-content; max-width:96vw; }
   #chip.show { transform:translate(-50%,0); }
-  #chip b { font-size:14px; font-weight:700; letter-spacing:.02em; }
+  #chip b { font-size:14px; font-weight:700; letter-spacing:.02em;
+            white-space:nowrap; }                      /* 回路名は折り返さない */
   #chip span { display:block; margin-top:3px; font-size:11.5px; opacity:.7;
                font-family:ui-monospace,"SF Mono",Menlo,monospace; }
 
@@ -91,10 +92,8 @@
 </div>
 
 <div class="overlay" id="start">
-  <h1>AR 名刺</h1>
-  <p>カメラを起動して、名刺をうつすと 3D オブジェクトが浮かび上がります。</p>
+  <p>カメラを使用許可して、名刺をうつすと 3D オブジェクトが浮かび上がります。</p>
   <button class="btn" id="btn-start">AR を開始</button>
-  <p style="font-size:12px;opacity:.5">カメラの使用許可が必要です</p>
 </div>
 
 <div class="overlay" id="err">
@@ -113,7 +112,7 @@ import { MindARThree } from 'mindar-image-three';
 const CONFIG = {
   targetSrc : './assets/targets.mind',  // マーカー画像から作った .mind
   cardAspect: 55 / 91,                  // マーカー画像の 高さ÷幅
-  name      : '稲垣 惇史',
+  name      : 'Atushi Inagaki',
   title     : '弓削商船高等専門学校',
   website   : 'https://d-o-b.sakura.ne.jp/inaCore/html/TeachingMaterials/',
   email     : 'inaphy.ai@gmail.com',
