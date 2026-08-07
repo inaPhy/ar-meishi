@@ -1,0 +1,203 @@
+{
+  "version": "1.1",
+  "components": [
+    {
+      "id": "1786108792860",
+      "type": "battery",
+      "x": 3,
+      "y": 2,
+      "rotation": 0,
+      "value": 6,
+      "rInt": 0.001,
+      "freq": 1,
+      "phase": 90,
+      "lastClickTime": 1786108805632,
+      "pProgress": 0.9926608295208867
+    },
+    {
+      "id": "1786108809273",
+      "type": "wire_l",
+      "x": 1,
+      "y": 4,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0,
+        "right": 0.9853219919326862,
+        "top": 0.014678008067313897,
+        "bottom": 0
+      }
+    },
+    {
+      "id": "1786108810690",
+      "type": "resistor",
+      "x": 2,
+      "y": 4,
+      "rotation": 0,
+      "value": 50,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "lastClickTime": 1786108833931,
+      "pProgress": 0.007338964211403232
+    },
+    {
+      "id": "1786108811934",
+      "type": "resistor",
+      "x": 4,
+      "y": 4,
+      "rotation": 0,
+      "value": 20,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.007338959289969305,
+      "lastClickTime": 1786108851687
+    },
+    {
+      "id": "1786108817906",
+      "type": "wire_l",
+      "x": 1,
+      "y": 2,
+      "rotation": 1,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "lastClickTime": 1786108818372,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0,
+        "right": 0.014678377992204616,
+        "top": 0,
+        "bottom": 0.9853216220077955
+      }
+    },
+    {
+      "id": "1786108821077",
+      "type": "wire_l",
+      "x": 5,
+      "y": 2,
+      "rotation": 2,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0.9853220814200733,
+        "right": 0,
+        "top": 0,
+        "bottom": 0.01467791857992129
+      }
+    },
+    {
+      "id": "1786108823386",
+      "type": "wire",
+      "x": 4,
+      "y": 2,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.9926610407100536
+    },
+    {
+      "id": "1786108824694",
+      "type": "wire",
+      "x": 2,
+      "y": 2,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.9926606980186752
+    },
+    {
+      "id": "1786108826289",
+      "type": "wire",
+      "x": 1,
+      "y": 3,
+      "rotation": 1,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.0073391889961034185
+    },
+    {
+      "id": "1786108828375",
+      "type": "wire",
+      "x": 5,
+      "y": 3,
+      "rotation": 1,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.992661040710048
+    },
+    {
+      "id": "1786108830136",
+      "type": "wire_l",
+      "x": 5,
+      "y": 4,
+      "rotation": 3,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0,
+      "legProgress": {
+        "left": 0.014677918579926397,
+        "right": 0,
+        "top": 0.9853220814200839,
+        "bottom": 0
+      }
+    },
+    {
+      "id": "1786108833466",
+      "type": "wire",
+      "x": 3,
+      "y": 4,
+      "rotation": 0,
+      "value": 0,
+      "freq": 1,
+      "phase": 90,
+      "rInt": 0.001,
+      "pProgress": 0.007338957793046719
+    }
+  ],
+  "settings": {
+    "darkMode": false,
+    "absMode": true,
+    "show3d": true,
+    "showParticles": false,
+    "showResults": false,
+    "isElectronMode": false,
+    "timeScale": 0.3,
+    "showIllustrations": false,
+    "toolbarVisibility": {
+      "battery": true,
+      "ac_source": true,
+      "resistor": true,
+      "bulb": true,
+      "capacitor": true,
+      "inductor": true,
+      "voltmeter": true,
+      "ammeter": true,
+      "wire": true,
+      "wire_l": true,
+      "wire_t": true,
+      "wire_cross": true,
+      "switch": true,
+      "undefined": true
+    }
+  }
+}
