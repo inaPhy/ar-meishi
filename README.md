@@ -1,6 +1,6 @@
 # AR名刺（QR → Web AR）
 
-名刺のQRコードを読むとサイトが開き、そのサイトが**名刺のおもて面そのものをマーカーとして認識**して、名刺の上に3Dオブジェクトを表示します。アプリのインストールは不要、ブラウザだけで動きます。
+名刺のQRコードを読むとサイトが開き、そのサイトが**名刺の面そのものをマーカーとして認識**して、名刺の上に3Dオブジェクトを表示します。アプリのインストールは不要、ブラウザだけで動きます。
 
 ```
 ar-meishi/
@@ -21,10 +21,10 @@ ar-meishi/
 
 ### 0. 公開URLを先に決める
 
-QRに焼き込むURLが必要なので、リポジトリ名を先に決めます。GitHubユーザー名が `USERNAME`、リポジトリ名が `ar-meishi` なら公開URLは：
+QRに焼き込むURLが必要なので、リポジトリ名を先に決めます。GitHubユーザー名 `inaPhy`、リポジトリ名 `ar-meishi` なので公開URLは：
 
 ```
-https://USERNAME.github.io/ar-meishi/
+https://inaphy.github.io/ar-meishi/
 ```
 
 ### 1. GitHubに上げて Pages を有効化
@@ -33,7 +33,7 @@ https://USERNAME.github.io/ar-meishi/
 cd ar-meishi
 git init && git add -A && git commit -m "AR meishi"
 git branch -M main
-git remote add origin https://github.com/USERNAME/ar-meishi.git
+git remote add origin https://github.com/inaPhy/ar-meishi.git
 git push -u origin main
 ```
 
@@ -70,10 +70,10 @@ git add -A && git commit -m "add marker" && git push
 const CONFIG = {
   targetSrc : './assets/targets.mind',
   cardAspect: 55 / 91,          // 名刺の 高さ÷幅
-  name      : 'Atsushi Inagaki',
-  title     : 'Founder',
-  website   : 'https://example.com',
-  email     : 'you@example.com',
+  name      : '稲垣 惇史',
+  title     : '弓削商船高等専門学校',
+  website   : 'https://d-o-b.sakura.ne.jp/inaCore/html/TeachingMaterials/',
+  email     : 'inaphy.ai@gmail.com',
   color1    : 0x3f7dfb,
   color2    : 0x00d4b8,
 };
