@@ -132,7 +132,7 @@
 import * as THREE from 'three';
 import { MindARThree } from 'mindar-image-three';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 document.getElementById('app-version').textContent = 'v' + APP_VERSION;
 
 /* =======================================================================
@@ -259,7 +259,11 @@ async function run() {
 
   const anchor = mindarThree.addAnchor(0);
   const group  = new THREE.Group();
-  anchor.group.add(group);
+  // モデルはMindARアンカーの子にせず、常にシーン直下に置く。
+  // これにより、アンカーが非表示になってもモデルは巻き込まれない。
+  group.matrixAutoUpdate = false;
+  group.visible = false;
+  scene.add(group);
 
   /* ---------- ライティング ---------- */
   scene.add(new THREE.HemisphereLight(0xffffff, 0x223355, 1.6));
@@ -290,6 +294,7 @@ async function run() {
 
   /* ---------- 回路モデルの表示状態 ---------- */
   let visible = false;
+  let tracking = false;
 
   let circuit = null;
   if (CIRCUIT.enabled) {
@@ -305,22 +310,16 @@ async function run() {
 
   /* ---------- 認識イベント ---------- */
   anchor.onTargetFound = () => {
-    // 再認識時は、退避していたモデルを名刺アンカーへ戻す。
-    if (group.parent !== anchor.group) {
-      anchor.group.add(group);
-      group.position.set(0, 0, 0);
-      group.quaternion.identity();
-      group.scale.set(1, 1, 1);
-    }
+    tracking = true;
     visible = true;
+    group.visible = true;
     $scan.classList.remove('show');
     $info.classList.add('show');
     if (circuit) $chip.classList.add('show');
   };
   anchor.onTargetLost = () => {
-    // MindARはマーカー消失時にアンカーを非表示にするため、
-    // 最後のワールド座標を保ったままモデルをシーン直下へ退避する。
-    if (visible && group.parent === anchor.group) scene.attach(group);
+    // 座標のコピーだけを止め、最後の検出位置で表示を続ける。
+    tracking = false;
   };
 
   const $shuffle = document.getElementById('btn-shuffle');
@@ -339,10 +338,21 @@ async function run() {
 
   /* ---------- 描画ループ ---------- */
   const clock = new THREE.Clock();
+  const sceneWorldInverse = new THREE.Matrix4();
   let appear = 0;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     const t  = clock.getElapsedTime();
+
+    // 認識中だけMindARアンカーの位置・角度・縮尺をコピーする。
+    // 見失った後はgroup.matrixを更新しないため、モデルは消えない。
+    if (tracking) {
+      anchor.group.updateWorldMatrix(true, false);
+      scene.updateWorldMatrix(true, false);
+      sceneWorldInverse.copy(scene.matrixWorld).invert();
+      group.matrix.multiplyMatrices(sceneWorldInverse, anchor.group.matrixWorld);
+      group.matrixWorldNeedsUpdate = true;
+    }
 
     appear += ((visible ? 1 : 0) - appear) * Math.min(1, dt * 6);
     frameMat.opacity = 0.14 * appear;
