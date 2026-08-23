@@ -19,6 +19,11 @@
   #start { background:radial-gradient(120% 100% at 50% 0%, #1b2440 0%, #0b0e14 70%); }
   #start h1 { font-size:22px; margin:0; letter-spacing:.04em; }
   #start p  { font-size:14px; line-height:1.8; opacity:.75; margin:0; max-width:340px; }
+  .start-links { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .start-links a { text-decoration:none; color:#fff; font-size:14px; font-weight:600;
+                   padding:12px 22px; border-radius:999px;
+                   background:rgba(20,26,40,.72); border:1px solid rgba(255,255,255,.18);
+                   backdrop-filter:blur(14px); }
   .btn { appearance:none; border:0; border-radius:999px; padding:15px 40px; font-size:16px;
          font-weight:700; color:#fff; background:linear-gradient(135deg,var(--accent),var(--accent2));
          box-shadow:0 8px 30px rgba(63,125,251,.4); cursor:pointer; }
@@ -120,6 +125,10 @@
 <div class="overlay" id="start">
   <button class="btn" id="btn-start">AR を開始</button>
   <p>カメラを使用許可して、名刺に向けてください。</p>
+  <div class="start-links">
+    <a id="start-link-web" href="#" target="_blank" rel="noopener">Webサイト</a>
+    <a id="start-link-mail" href="#">メール</a>
+  </div>
 </div>
 
 <div class="overlay" id="err">
@@ -132,7 +141,7 @@
 import * as THREE from 'three';
 import { MindARThree } from 'mindar-image-three';
 
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.3.0';
 document.getElementById('app-version').textContent = 'v' + APP_VERSION;
 
 /* =======================================================================
@@ -168,6 +177,8 @@ const CIRCUIT = {
 
 document.getElementById('link-web').href  = CONFIG.website;
 document.getElementById('link-mail').href = 'mailto:' + CONFIG.email;
+document.getElementById('start-link-web').href  = CONFIG.website;
+document.getElementById('start-link-mail').href = 'mailto:' + CONFIG.email;
 
 const $start = document.getElementById('start');
 const $loading = document.getElementById('loading');
